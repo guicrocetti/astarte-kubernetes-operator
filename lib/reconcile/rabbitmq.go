@@ -106,6 +106,11 @@ func EnsureRabbitMQ(cr *apiv1alpha2.Astarte, c client.Client, scheme *runtime.Sc
 		return nil
 	}
 
+	// Add deprication notice for rabbitmq deployed by astarte operator
+	if pointy.BoolValue(cr.Spec.RabbitMQ.Deploy, true) {
+		log.Info("RabbitMQ support via Astarte Operator will be discontinued. Consider RabbitMQ Cluster Operator or other managed services for production environments.")
+	}
+
 	// First of all, check if we need to regenerate the cookie.
 	if err := ensureErlangCookieSecret(statefulSetName+"-cookie", cr, c, scheme); err != nil {
 		return err
