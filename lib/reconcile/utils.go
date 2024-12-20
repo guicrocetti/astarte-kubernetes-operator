@@ -763,13 +763,19 @@ func computePodLabels(r apiv1alpha2.PodLabelsGetter, labels map[string]string) m
 func getReplicaCountForResource(resource *apiv1alpha2.AstarteGenericClusteredResource, cr *apiv1alpha2.Astarte, c client.Client, log logr.Logger) *int32 {
 	if cr.Spec.Features.Autoscaling && resource.Autoscale != nil {
 		if hpaStatus, err := getHPAStatusForResource(resource.Autoscale.Horizontal, cr, c, log); err == nil {
+			if hpaStatus.DesiredReplicas == 0 && hpaStatus.CurrentReplicas == 0 {
+				log.Info("Getting replica count from HPA 2", "value", 0)
+				handleHPADeleteBeforeCreate(resource.Autoscale.Horizontal, cr, c, log)
+				one := int32(1)
+				return &one
+			}
 			log.Info("Getting replica count from HPA", "value", hpaStatus.DesiredReplicas)
 			return &hpaStatus.DesiredReplicas
 		}
 	}
 	return resource.Replicas
-}
 
+}
 func getHPAStatusForResource(autoscalerName string, cr *apiv1alpha2.Astarte, c client.Client, log logr.Logger) (autoscalingv2.HorizontalPodAutoscalerStatus, error) {
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
 	if err := c.Get(context.Background(), types.NamespacedName{Name: autoscalerName, Namespace: cr.Namespace}, hpa); err != nil {
@@ -777,4 +783,16 @@ func getHPAStatusForResource(autoscalerName string, cr *apiv1alpha2.Astarte, c c
 		return autoscalingv2.HorizontalPodAutoscalerStatus{}, fmt.Errorf("not found")
 	}
 	return hpa.Status, nil
+}
+
+func handleHPADeleteBeforeCreate(autoscalerName string, cr *apiv1alpha2.Astarte, c client.Client, log logr.Logger) {
+	// Delete the HPA if it exists.
+	log.Info("Deleting HPA in racing condition with Astarte Operator", "name", autoscalerName, "namespace", cr.Namespace)
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
+	if err := c.Get(context.Background(), types.NamespacedName{Name: autoscalerName, Namespace: cr.Namespace}, hpa); err == nil {
+		log.Info("Deleting HPA", "name", autoscalerName, "namespace", cr.Namespace)
+		if err := c.Delete(context.Background(), hpa); err != nil {
+			log.Error(err, "Could not delete HPA", "name", autoscalerName, "namespace", cr.Namespace)
+		}
+	}
 }
