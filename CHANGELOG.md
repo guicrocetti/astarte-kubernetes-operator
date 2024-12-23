@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Fix the propagation of replicaCount, installCrds, and pullPolicy values 
   in values.yaml during Helm chart installation.
+- Fixed race condition between HPA and Astarte CRDs where HPA could set replicas to 0
+  during initialization, causing service disruption. The operator now detects this
+  condition and removes problematic HPAs while maintaining minimum replica count (#397)
 
 ## [24.5.1] - Unreleased
 ### Fixed
