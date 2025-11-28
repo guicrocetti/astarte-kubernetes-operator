@@ -69,7 +69,7 @@ func EnsureAstarteGenericBackend(cr *apiv2alpha1.Astarte, backend apiv2alpha1.As
 	}
 
 	// Ensure we reconcile with the RBAC Roles, if needed.
-	if err := reconcileStandardRBACForClusteringForApp(deploymentName, GetAstarteClusteredServicePolicyRules(), cr, c, scheme); err != nil {
+	if err := EnsureErlangClusteringRBAC(cr, component, c, scheme); err != nil {
 		return err
 	}
 
